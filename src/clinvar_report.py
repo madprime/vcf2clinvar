@@ -2,6 +2,8 @@
 #
 
 """Tools for parsing and matching VCF files"""
+import bz2
+import gzip
 import json
 import re
 import sys
@@ -519,17 +521,32 @@ def main():
 
     if sys.stdin.isatty():
         if options.inputfile:
-            input_genome_file = open(options.inputfile)
+            if options.inputfile.endswith('.vcf'):
+                input_genome_file = open(options.inputfile)
+            elif options.inputfile.endswith('.vcf.gz'):
+                input_genome_file = gzip.open(options.inputfile)
+            elif options.inputfile.endswith('.vcf.bz2'):
+                input_genome_file = bz2.BZ2File(options.inputfile)
+            else:
+                raise IOError("Genome filename expected to end with ''.vcf'," +
+                              " '.vcf.gz', or '.vcf.bz2'.")
         else:
             sys.stderr.write("Provide input VCF file\n")
             parser.print_help()
             sys.exit(1)
-        input_genome_file = open(options.inputfile)
     else:
         input_genome_file = sys.stdin
 
     if options.clinvar:
-        input_clinvar_file = open(options.clinvar)
+        if options.clinvar.endswith('.vcf'):
+            input_clinvar_file = open(options.clinvar)
+        elif options.clinvar.endswith('.vcf.gz'):
+            input_clinvar_file = gzip.open(options.clinvar)
+        elif options.clinvar.endswith('.vcf.bz2'):
+            input_clinvar_file = bz2.BZ2File(options.clinvar)
+        else:
+            raise IOError("ClinVar filename expected to end with ''.vcf'," +
+                          " '.vcf.gz', or '.vcf.bz2'.")
     else:
         sys.stderr.write("Provide ClinVar VCF file\n")
         parser.print_help()
