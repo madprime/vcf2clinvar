@@ -1,3 +1,4 @@
 *~
-data/clinvar.vcf
-data/clinvar.vcf.gz
+scratch/*
+local_files/*
+*.pyc
