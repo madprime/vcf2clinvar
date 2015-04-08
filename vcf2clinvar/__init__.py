@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
-
 """Tools for parsing and matching VCF files"""
+from __future__ import unicode_literals
 import bz2
 import gzip
 import json
@@ -33,11 +33,11 @@ CHROM_INDEX = {
 }
 
 REV_CHROM_INDEX = {
-    1: b'chr1', 2: b'chr2', 3: b'chr3', 4: b'chr4', 5: b'chr5',
-    6: b'chr6', 7: b'chr7', 8: b'chr8', 9: b'chr9', 10: b'chr10',
-    11: b'chr11', 12: b'chr12', 13: b'chr13', 14: b'chr14', 15: b'chr15',
-    16: b'chr16', 17: b'chr17', 18: b'chr18', 19: b'chr19', 20: b'chr20',
-    21: b'chr21', 22: b'chr22', 23: b'chrX', 24: b'chrY', 25: b'chrM',
+    1: 'chr1', 2: 'chr2', 3: 'chr3', 4: 'chr4', 5: 'chr5',
+    6: 'chr6', 7: 'chr7', 8: 'chr8', 9: 'chr9', 10: 'chr10',
+    11: 'chr11', 12: 'chr12', 13: 'chr13', 14: 'chr14', 15: 'chr15',
+    16: 'chr16', 17: 'chr17', 18: 'chr18', 19: 'chr19', 20: 'chr20',
+    21: 'chr21', 22: 'chr22', 23: 'chrX', 24: 'chrY', 25: 'chrM',
 }
 
 CLNSIG_INDEX = {
@@ -68,10 +68,10 @@ class ClinVarRecord(object):
 
     def as_dict(self):
         """Return ClinVarRecord data as dict object."""
-        return {'dsdb': self.dsdb,
-                'acc': self.acc,
-                'dbn': self.dbn,
-                'sig': self.sig}
+        return {'dsdb': self.dsdb.decode('utf-8'),
+                'acc': self.acc.decode('utf-8'),
+                'dbn': self.dbn.decode('utf-8'),
+                'sig': self.sig.decode('utf-8')}
 
 
 class Allele(object):
@@ -96,7 +96,7 @@ class Allele(object):
         if not (re.match(br'^[ACGTN]*$', sequence) or
                 re.match(br'^<.*>$', sequence)):
             raise ValueError("Allele sequence isn't a standard DNA sequence")
-        self.sequence = sequence
+        self.sequence = sequence.decode('utf-8')
         if frequency:
             try:
                 if (float(frequency) < 0.0 or
@@ -116,9 +116,9 @@ class Allele(object):
     def as_dict(self):
         """Return Allele data as dict object."""
         self_as_dict = dict()
-        self_as_dict['sequence'] = self.sequence
+        self_as_dict['sequence'] = self.sequence.decode('utf-8')
         if hasattr(self, 'frequency'):
-            self_as_dict['frequency'] = self.frequency
+            self_as_dict['frequency'] = self.frequency.decode('utf-8')
         return self_as_dict
 
 
@@ -465,7 +465,7 @@ def match_to_clinvar(genome_file, clin_file):
                     # The 'records' attribute is specific to ClinVarAlleles.
                     if hasattr(allele, 'records'):
                         try:
-                            frequency = allele.frequency
+                            frequency = allele.frequency.decode('utf-8')
                         except AttributeError:
                             frequency = 'Unknown'
 
@@ -607,8 +607,8 @@ def main():
             ele["allele_freq"] = allele_freq
             ele["zygosity"] = zygosity
 
-            url = b'http://www.ncbi.nlm.nih.gov/clinvar/' + spec[0]
-            name = spec[1]
+            url = u'http://www.ncbi.nlm.nih.gov/clinvar/' + spec[0].decode('utf-8')
+            name = spec[1].decode('utf-8')
             clnsig = spec[2]
 
             ele["acc_url"] = url
