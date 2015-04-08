@@ -20,4 +20,7 @@ setup(
 
     # Core dependencies should be listed here (will be installed by pip).
     install_requires=[],
+
+    scripts=['clinvar_report.py'],
+
 )
