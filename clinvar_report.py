@@ -7,10 +7,18 @@ import bz2
 import csv
 import gzip
 import json
+from signal import signal, SIGPIPE, SIGINT, SIG_DFL
 import sys
 
-from vcf2clinvar import match_to_clinvar, REV_CHROM_INDEX
+from vcf2clinvar import match_to_clinvar
+from vcf2clinvar.common import REV_CHROM_INDEX
 
+# Don't stack dump on keyboard ctrl-c or on premature
+# termination of output stream (say from piping output
+# through head).
+#
+signal(SIGPIPE, SIG_DFL)
+signal(SIGINT, SIG_DFL)
 
 def main():
     """
@@ -69,7 +77,7 @@ def main():
         elif options.clinvar.endswith('.vcf.bz2'):
             input_clinvar_file = bz2.BZ2File(options.clinvar)
         else:
-            raise IOError("ClinVar filename expected to end with ''.vcf'," +
+            raise IOError("ClinVar filename expected to end with '.vcf'," +
                           " '.vcf.gz', or '.vcf.bz2'.")
     else:
         sys.stderr.write("Provide ClinVar VCF file\n")
@@ -130,9 +138,8 @@ def main():
             ele["allele_freq"] = allele_freq
             ele["zygosity"] = zygosity
 
-            url = ('http://www.ncbi.nlm.nih.gov/clinvar/' +
-                   spec[0].decode('utf-8'))
-            name = spec[1].decode('utf-8')
+            url = 'http://www.ncbi.nlm.nih.gov/clinvar/' + spec[0]
+            name = spec[1]
             clnsig = spec[2]
 
             ele["acc_url"] = url
@@ -144,9 +151,7 @@ def main():
 
             if output_format == "csv":
                 data = (chrom, pos, name, clnsig, allele_freq, zygosity, url)
-                data_formatted = [s.decode('utf-8') if type(s) == type(b'.')
-                                  else s for s in data]
-                csv_out.writerow(data_formatted)
+                csv_out.writerow(data)
 
     if output_format == "json":
         print(json.dumps(json_report))
