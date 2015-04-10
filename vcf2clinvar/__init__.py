@@ -26,14 +26,22 @@ def _next_line(filebuffer):
 
 
 def match_to_clinvar(genome_file, clin_file):
-    """Match a genome VCF to variants in the ClinVar VCF file"""
+    """
+    Match a genome VCF to variants in the ClinVar VCF file
+
+    Acts as a generator, yielding tuples of:
+    (ClinVarVCFLine, ClinVarAllele, zygosity)
+
+    'zygosity' is a string and corresponds to the genome's zygosity for that
+    ClinVarAllele. It can be either: 'Het' (heterozygous), 'Hom' (homozygous),
+    or 'Hem' (hemizygous, e.g. X chromosome in XY individuals).
+    """
     clin_curr_line = _next_line(clin_file)
     genome_curr_line = _next_line(genome_file)
 
     # Ignores all the lines that start with a hashtag
     while clin_curr_line.startswith('#'):
         clin_curr_line = _next_line(clin_file)
-
     while genome_curr_line.startswith('#'):
         genome_curr_line = _next_line(genome_file)
 
@@ -67,14 +75,22 @@ def match_to_clinvar(genome_file, clin_file):
         if not genome_vcf_line.genotype_allele_indexes:
             genome_curr_line = _next_line(genome_file)
             continue
-        clinvar_vcf_line = ClinVarVCFLine(vcf_line=clin_curr_line)
 
+        # Match only if ClinVar and Genome ref_alleles match.
+        clinvar_vcf_line = ClinVarVCFLine(vcf_line=clin_curr_line)
+        if not genome_vcf_line.ref_allele == clinvar_vcf_line.ref_allele:
+            try:
+                genome_curr_line = _next_line(genome_file)
+                clin_curr_line = _next_line(clin_file)
+                continue
+            except StopIteration:
+                break
+
+        # Determine genome alleles and zygosity. Zygosity is assumed to be one
+        # of: heterozygous, homozygous, or hemizygous.
         genotype_allele_indexes = genome_vcf_line.genotype_allele_indexes
         genome_alleles = [genome_vcf_line.alleles[x] for
                           x in genotype_allele_indexes]
-
-        # Determine zygosity. Zygosity is assumed to be exclusive
-        # (heterozygous, homozygous, or hemizygous).
         if len(genome_alleles) == 1:
             zygosity = 'Hem'
         elif len(genome_alleles) == 2:
@@ -84,46 +100,18 @@ def match_to_clinvar(genome_file, clin_file):
             else:
                 zygosity = 'Het'
         else:
-            raise ValueError('This code only expects to work on genomes with ' +
-                             'one or two alleles called at each location.' +
-                             'The following line violates this:' +
+            raise ValueError('This code only expects to work on genomes ' +
+                             'with one or two alleles called at each ' +
+                             'location. The following line violates this:' +
                              str(genome_vcf_line))
 
-        # Match only if ClinVar and Genome ref_alleles match.
-        if not genome_vcf_line.ref_allele == clinvar_vcf_line.ref_allele:
-            try:
-                genome_curr_line = _next_line(genome_file)
-                clin_curr_line = _next_line(clin_file)
-                continue
-            except StopIteration:
-                break
-
+        # Look for matches to ClinVar alleles.
         for genome_allele in genome_alleles:
             for allele in clinvar_vcf_line.alleles:
                 if genome_allele.sequence == allele.sequence:
                     # The 'records' attribute is specific to ClinVarAlleles.
                     if hasattr(allele, 'records'):
-                        try:
-                            frequency = allele.frequency.decode('utf-8')
-                        except AttributeError:
-                            frequency = 'Unknown'
-
-                        clnsig = [allele.records[x].sig for
-                                  x in range(len(allele.records))]
-                        data = [(allele.records[n].acc,
-                                 allele.records[n].dbn,
-                                 CLNSIG_INDEX[clnsig[n]]) for n in
-                                range(len(clnsig)) if (clnsig[n] == '4' or
-                                                       clnsig[n] == '5' or
-                                                       clnsig[n] == '255')]
-                        if data:
-                            yield (genome_curr_pos['chrom'],
-                                   genome_curr_pos['pos'],
-                                   clinvar_vcf_line.alleles[0].sequence,
-                                   allele.sequence,
-                                   data,
-                                   frequency,
-                                   zygosity)
+                        yield (genome_vcf_line, allele, zygosity)
 
         # Done matching, move on.
         try:

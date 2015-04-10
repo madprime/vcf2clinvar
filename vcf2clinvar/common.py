@@ -71,6 +71,10 @@ class Allele(object):
         """Print Allele object as dict object data."""
         return self.as_json()
 
+    def __str__(self):
+        """Print Allele object as dict object data."""
+        return self.as_json()
+
     def as_dict(self):
         """Return Allele data as dict object."""
         self_as_dict = dict()

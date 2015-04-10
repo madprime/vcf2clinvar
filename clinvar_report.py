@@ -7,11 +7,12 @@ import bz2
 import csv
 import gzip
 import json
+import os
 from signal import signal, SIGPIPE, SIGINT, SIG_DFL
 import sys
 
 from vcf2clinvar import match_to_clinvar
-from vcf2clinvar.common import REV_CHROM_INDEX
+from vcf2clinvar.clinvar_update import get_latest_vcf_file
 
 # Don't stack dump on keyboard ctrl-c or on premature
 # termination of output stream (say from piping output
@@ -19,6 +20,56 @@ from vcf2clinvar.common import REV_CHROM_INDEX
 #
 signal(SIGPIPE, SIG_DFL)
 signal(SIGINT, SIG_DFL)
+
+
+def json_report(input_genome_file, input_clinvar_file, build, notes, version):
+    json_report = {}
+    json_report["vcf2clinvar-version"] = version
+    json_report["notes"] = notes
+    json_report["genome-build"] = build
+    json_report["variants"] = []
+    matching = match_to_clinvar(input_genome_file, input_clinvar_file)
+    for genome_vcf_line, clinvar_allele, zygosity in matching:
+        for record in clinvar_allele.records:
+            data = {
+                'chrom': genome_vcf_line.chrom,
+                'pos': genome_vcf_line.start,
+                'ref-allele': genome_vcf_line.ref_allele,
+                # Note that var_allele CAN be the same as the ref_allele, if
+                # the reference variant is considered pathogenic! Factor V
+                # Leiden is a famous example.
+                'var-allele': clinvar_allele.sequence,
+                'zygosity': zygosity,
+            }
+            json_report['variants'].append(data)
+    print(json.dumps(json_report))
+
+
+def csv_report(input_genome_file, input_clinvar_file, build, version):
+    print('##genome-build=%s' % build)
+    print('##vcf2clinvar-version=%s' % version)
+    csv_out = csv.writer(sys.stdout)
+    header = ('Chromosome', 'Position', 'Reference allele', 'Variant allele',
+              'Name', 'Significance', 'Frequency', 'Zygosity',
+              'ClinVar accession URL')
+    csv_out.writerow(header)
+    matching = match_to_clinvar(input_genome_file, input_clinvar_file)
+    for genome_vcf_line, clinvar_allele, zygosity in matching:
+        chrom = genome_vcf_line.chrom
+        pos = genome_vcf_line.start
+        ref_allele = genome_vcf_line.ref_allele
+        alt_allele = clinvar_allele.sequence
+        name = ':'.join([r.dbn for r in clinvar_allele.records])
+        allele_freq = clinvar_allele.frequency
+        zygosity = zygosity
+        for record in clinvar_allele.records:
+            name = record.dbn
+            clnsig = record.sig
+            url = url = 'http://www.ncbi.nlm.nih.gov/clinvar/' + record.acc
+            data = (chrom, pos, ref_allele, alt_allele, name, clnsig,
+                    allele_freq, zygosity, url)
+            csv_out.writerow(data)
+
 
 def main():
     """
@@ -28,134 +79,103 @@ def main():
     parser = ArgumentParser()
 
     parser.add_argument(
-        "-C", "--clinvar", dest="clinvar",
-        help="ClinVar VCF file", metavar="CLINVAR")
+        "-c", "--clinvarfile", dest="clinvarfile",
+        help="ClinVar VCF file (either this or -C must be specified)",
+        metavar="CLINVARFILE")
+    parser.add_argument(
+        "-C", "--clinvardir", dest="clinvardir",
+        help="ClinVar VCF directory (either this or -c must be specified). " +
+        "This option will use vcf2clinvar.clinvar_update to automatically " +
+        "check and import the most recent ClinVar file to this directory.",
+        metavar="CLINVARDIR")
     parser.add_argument(
         "-i", "--input", dest="inputfile",
-        help="Input VCF file", metavar="INPUT")
+        help="Input VCF file ['.vcf', '.vcf.gz', '.vcf.bz2']. " +
+        "Uncompressed genome data is also accepted via stdin.",
+        metavar="INPUT")
     parser.add_argument(
-        "-F", "--output-format", dest="format",
-        help="Output format (currently 'csv' or 'json')",
-        metavar="FORMAT")
-    parser.add_argument(
-        "-V", "--schema-version", dest="schema_version",
-        help="Version to include report (JSON only)",
-        metavar="OUTVERSION")
+        "-t", "--type", dest="type", default='csv',
+        help="Output report type ('csv' or 'json'). Defaults to csv. " +
+        "CSV Report: Reports all genome variants matching ClinVar records, " +
+        "and some summary ClinVar data from these records. Header lines " +
+        "with metadata begin with '##'.\n" +
+        "JSON Report: Reports genome variants matching ClinVar records " +
+        "(no record information is included).",
+        metavar="TYPE")
     parser.add_argument(
         "-n", "--notes", dest="notes",
-        help="Notes, as a JSON string, to include in report (JSON only)",
+        help="Notes (JSON format) to include in report. (JSON report only)",
         metavar="NOTES")
     parser.add_argument(
         "-g", "--genome-build", dest="build",
-        help="Genome build to include in report (JSON only)",
+        help="Genome build to include in report ('b37' or 'b38').",
         metavar="GENOMEBUILD")
     options = parser.parse_args()
 
-    if sys.stdin.isatty():
-        if options.inputfile:
-            if options.inputfile.endswith('.vcf'):
-                input_genome_file = open(options.inputfile)
-            elif options.inputfile.endswith('.vcf.gz'):
-                input_genome_file = gzip.open(options.inputfile)
-            elif options.inputfile.endswith('.vcf.bz2'):
-                input_genome_file = bz2.BZ2File(options.inputfile)
-            else:
-                raise IOError("Genome filename expected to end with ''.vcf'," +
-                              " '.vcf.gz', or '.vcf.bz2'.")
-        else:
-            sys.stderr.write("Provide input VCF file\n")
-            parser.print_help()
-            sys.exit(1)
-    else:
-        input_genome_file = sys.stdin
+    version = os.popen("python setup.py --version").read().strip()
 
-    if options.clinvar:
-        if options.clinvar.endswith('.vcf'):
-            input_clinvar_file = open(options.clinvar)
-        elif options.clinvar.endswith('.vcf.gz'):
-            input_clinvar_file = gzip.open(options.clinvar)
-        elif options.clinvar.endswith('.vcf.bz2'):
-            input_clinvar_file = bz2.BZ2File(options.clinvar)
+    if not sys.stdin.isatty():
+        input_genome_file = sys.stdin
+    elif options.inputfile:
+        if options.inputfile.endswith('.vcf'):
+            input_genome_file = open(options.inputfile)
+        elif options.inputfile.endswith('.vcf.gz'):
+            input_genome_file = gzip.open(options.inputfile)
+        elif options.inputfile.endswith('.vcf.bz2'):
+            input_genome_file = bz2.BZ2File(options.inputfile)
         else:
-            raise IOError("ClinVar filename expected to end with '.vcf'," +
+            raise IOError("Genome filename expected to end with ''.vcf'," +
                           " '.vcf.gz', or '.vcf.bz2'.")
     else:
-        sys.stderr.write("Provide ClinVar VCF file\n")
+        sys.stderr.write("Provide input VCF file\n")
         parser.print_help()
         sys.exit(1)
 
-    output_format = "csv"
-    if options.format:
-        if options.format == "csv":
-            output_format = "csv"
-        elif options.format == "json":
-            output_format = "json"
-
-    if output_format == "csv":
-        csv_out = csv.writer(sys.stdout)
-        header = ("Chromosome", "Position", "Name", "Significance",
-                  "Frequency", "Zygosity", "ACC URL")
-        csv_out.writerow(header)
-
-    metadata = {}
-    metadata["notes"] = options.clinvar
-
-    build = "unknown"
-    if options.build:
+    if options.build and options.build in ['b37', 'b38']:
         build = options.build
-    metadata["genome_build"] = build
+    else:
+        raise IOError("Input VCF genome build must be 'b37' or 'b38'.")
 
-    notes_json = {}
-    if options.notes:
-        notes_json["parameter"] = options.notes
-        try:
-            notes_json = json.loads(options.notes)
-        except:
-            sys.stderr.write("Could not parse JSON notes field\n")
+    if (not (options.clinvarfile or options.clinvardir) or
+            (options.clinvarfile and options.clinvardir)):
+        sys.stderr.write("Please provide either a ClinVar file or directory.")
+        parser.print_help()
+        sys.exit(1)
+    if options.clinvarfile:
+        clinvarfilename = options.clinvarfile
+    elif options.clinvardir:
+        clinvarfilename = get_latest_vcf_file(target_dir=options.clinvardir,
+                                              build=build)
+    if clinvarfilename.endswith('.vcf'):
+        input_clinvar_file = open(options.clinvarfile)
+    elif clinvarfilename.endswith('.vcf.gz'):
+        input_clinvar_file = gzip.open(clinvarfilename)
+    elif clinvarfilename.endswith('.vcf.bz2'):
+        input_clinvar_file = bz2.BZ2File(clinvarfilename)
+    else:
+        raise IOError("ClinVar filename expected to end with '.vcf'," +
+                      " '.vcf.gz', or '.vcf.bz2'.")
 
-    json_report = {}
-    json_report["schema_version"] = options.schema_version
-    json_report["notes"] = notes_json
-    json_report["metadata"] = metadata
-    json_report["variants"] = []
-
-    matching = match_to_clinvar(input_genome_file, input_clinvar_file)
-    for var in matching:
-        chrom = var[0]
-        pos = var[1]
-        ref_allele = var[2]
-        alt_allele = var[3]
-        name_acc = var[4]
-        allele_freq = var[5]
-        zygosity = var[6]
-
-        for spec in name_acc:
-            ele = {}
-            ele["chrom"] = REV_CHROM_INDEX[chrom]
-            ele["pos"] = pos
-            ele["ref_allele"] = ref_allele
-            ele["alt_allele"] = alt_allele
-            ele["allele_freq"] = allele_freq
-            ele["zygosity"] = zygosity
-
-            url = 'http://www.ncbi.nlm.nih.gov/clinvar/' + spec[0]
-            name = spec[1]
-            clnsig = spec[2]
-
-            ele["acc_url"] = url
-            ele["name"] = name
-            ele["clinical_significance"] = clnsig
-
-            if output_format == 'json':
-                json_report["variants"].append(ele)
-
-            if output_format == "csv":
-                data = (chrom, pos, name, clnsig, allele_freq, zygosity, url)
-                csv_out.writerow(data)
-
-    if output_format == "json":
-        print(json.dumps(json_report))
-
+    if options.type not in ['csv', 'json']:
+        raise IOError("Not a valid report type, must be 'csv' or 'json'.")
+    if options.type == "csv":
+        csv_report(input_genome_file=input_genome_file,
+                   input_clinvar_file=input_clinvar_file,
+                   build=build,
+                   version=version)
+    elif options.type == "json":
+        notes_json = {}
+        if options.notes:
+            notes_json["parameter"] = options.notes
+            try:
+                notes_json = json.loads(options.notes)
+            except:
+                sys.stderr.write("Could not parse JSON notes field\n")
+        json_report(input_genome_file=input_genome_file,
+                    input_clinvar_file=input_clinvar_file,
+                    build=build,
+                    notes=notes_json,
+                    version=version)
 
 if __name__ == "__main__":
     main()

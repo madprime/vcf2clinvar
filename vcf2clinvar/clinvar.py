@@ -58,10 +58,10 @@ class ClinVarRecord(object):
 
     def as_dict(self):
         """Return ClinVarRecord data as dict object."""
-        return {'dsd': self.dsdb.decode('utf-8'),
-                'acc': self.acc.decode('utf-8'),
-                'dbn': self.dbn.decode('utf-8'),
-                'sig': self.sig.decode('utf-8')}
+        return {'dsdb': self.dsdb,
+                'acc': self.acc,
+                'dbn': self.dbn,
+                'sig': self.sig}
 
 
 class ClinVarAllele(Allele):
@@ -121,8 +121,7 @@ class ClinVarVCFLine(VCFLine):
                 'ref_allele': self.ref_allele,
                 'alt_alleles': self.alt_alleles,
                 'info': self.info,
-                'alleles': [[x[0], x[1], x[2].as_dict()] if x[1] else
-                            x for x in self.alleles]}
+                'alleles': [x.as_dict() for x in self.alleles]}
 
     def _parse_frequencies(self):
         """Parse frequency data in ClinVar VCF"""
