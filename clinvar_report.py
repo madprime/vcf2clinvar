@@ -48,7 +48,7 @@ def json_report(input_genome_file, input_clinvar_file, build, notes, version):
 def csv_report(input_genome_file, input_clinvar_file, build, version):
     print('##genome-build=%s' % build)
     print('##vcf2clinvar-version=%s' % version)
-    csv_out = csv.writer(sys.stdout)
+    csv_out = csv.writer(sys.stdout, lineterminator=os.linesep)
     header = ('Chromosome', 'Position', 'Reference allele', 'Variant allele',
               'Name', 'Significance', 'Frequency', 'Zygosity',
               'ClinVar accession URL')
