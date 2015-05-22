@@ -17,7 +17,10 @@ from .genome import GenomeVCFLine
 
 
 def _next_line(filebuffer):
-    next_line = filebuffer.readline()
+    try:
+        next_line = filebuffer.readline()
+    except AttributeError:
+        next_line = filebuffer.next()
     try:
         next_line = next_line.decode('utf-8')
         return next_line
