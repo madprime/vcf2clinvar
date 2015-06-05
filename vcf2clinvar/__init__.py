@@ -1,15 +1,6 @@
 #!/usr/bin/python
 #
 """Tools for parsing and matching VCF files"""
-from __future__ import unicode_literals
-
-# Don't stack dump on keyboard ctrl-c or on premature
-# termination of output stream (say from piping output
-# through head).
-#
-from signal import signal, SIGPIPE, SIGINT, SIG_DFL
-signal(SIGPIPE, SIG_DFL)
-signal(SIGINT, SIG_DFL)
 
 from .clinvar import CLNSIG_INDEX, ClinVarVCFLine
 from .common import VCFLine
