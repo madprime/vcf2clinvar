@@ -148,7 +148,7 @@ class ClinVarVCFLine(VCFLine):
 
         # Process all the ClinVar records for this allele.
         records = []
-        for record_idx in range(len(cln_data['CLNACC'])):
+        for record_idx in range(len(cln_data['CLNACC'][cln_idx])):
             try:
                 record = ClinVarRecord(
                     clndsdb=cln_data['CLNDSDB'][cln_idx][record_idx],
