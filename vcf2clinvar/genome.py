@@ -11,6 +11,10 @@ class GenomeVCFLine(VCFLine):
         vcf_line = kwargs['vcf_line']
         vcf_fields = vcf_line.strip().split('\t')
         self.genotype_allele_indexes = self._parse_genotype(vcf_fields)
+        self.filters = self._parse_filter(vcf_fields)
+
+    def _parse_filter(self, vcf_fields):
+        return vcf_fields[6].split(';')
 
     def _parse_genotype(self, vcf_fields):
         """Parse genotype from VCF line data"""
