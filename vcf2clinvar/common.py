@@ -13,7 +13,7 @@ CHROM_INDEX = {
     'chr6': 6, 'chr7': 7, 'chr8': 8, 'chr9': 9, 'chr10': 10,
     'chr11': 11, 'chr12': 12, 'chr13': 13, 'chr14': 14, 'chr15': 15,
     'chr16': 16, 'chr17': 17, 'chr18': 18, 'chr19': 19, 'chr20': 20,
-    'chr21': 21, 'chr22': 22, 'chrX': 23, 'chrY': 24, 'chrM': 25,
+    'chr21': 21, 'chr22': 22, 'chrX': 23, 'chrY': 24, 'chrM': 25, 'chrMT': 25,
 }
 
 REV_CHROM_INDEX = {
@@ -21,7 +21,7 @@ REV_CHROM_INDEX = {
     6: 'chr6', 7: 'chr7', 8: 'chr8', 9: 'chr9', 10: 'chr10',
     11: 'chr11', 12: 'chr12', 13: 'chr13', 14: 'chr14', 15: 'chr15',
     16: 'chr16', 17: 'chr17', 18: 'chr18', 19: 'chr19', 20: 'chr20',
-    21: 'chr21', 22: 'chr22', 23: 'chrX', 24: 'chrY', 25: 'chrM',
+    21: 'chr21', 22: 'chr22', 23: 'chrX', 24: 'chrY', 25: 'chrMT',
 }
 
 
