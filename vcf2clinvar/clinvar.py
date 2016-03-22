@@ -51,6 +51,7 @@ class ClinVarRecord(object):
         self.acc = clnacc
         self.dbn = clndbn
         self.sig = clnsig
+        self.inf = CLNSIG_INDEX[clnsig]
 
     def __unicode__(self):
         """Return ClinVarRecord data as JSON-formatted string."""

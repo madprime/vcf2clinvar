@@ -34,12 +34,16 @@ def json_report(input_genome_file, input_clinvar_file, build, notes, version):
             data = {
                 'chrom': genome_vcf_line.chrom,
                 'pos': genome_vcf_line.start,
-                'ref-allele': genome_vcf_line.ref_allele,
+                'ref_allele': genome_vcf_line.ref_allele,
                 # Note that var_allele CAN be the same as the ref_allele, if
                 # the reference variant is considered pathogenic! Factor V
                 # Leiden is a famous example.
-                'var-allele': clinvar_allele.sequence,
+                'alt_allele': clinvar_allele.sequence,
                 'zygosity': zygosity,
+                'name': record.dbn,
+                'acc_url': 'http://www.ncbi.nlm.nih.gov/clinvar/' + record.acc,
+                'allele_freq': clinvar_allele.frequency,
+                'clinical_significance': record.inf,
             }
             json_report['variants'].append(data)
     print(json.dumps(json_report))
@@ -114,9 +118,7 @@ def main():
 
     version = os.popen("python setup.py --version").read().strip()
 
-    if not sys.stdin.isatty():
-        input_genome_file = sys.stdin
-    elif options.inputfile:
+    if options.inputfile:
         if options.inputfile.endswith('.vcf'):
             input_genome_file = open(options.inputfile)
         elif options.inputfile.endswith('.vcf.gz'):
@@ -126,6 +128,8 @@ def main():
         else:
             raise IOError("Genome filename expected to end with ''.vcf'," +
                           " '.vcf.gz', or '.vcf.bz2'.")
+    elif not sys.stdin.isatty():
+        input_genome_file = sys.stdin
     else:
         sys.stderr.write("Provide input VCF file\n")
         parser.print_help()
