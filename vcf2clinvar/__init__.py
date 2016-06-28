@@ -2,7 +2,7 @@
 #
 """Tools for parsing and matching VCF files"""
 
-from .clinvar import CLNSIG_INDEX, ClinVarVCFLine
+from .clinvar import ClinVarVCFLine
 from .common import VCFLine
 from .genome import GenomeVCFLine
 

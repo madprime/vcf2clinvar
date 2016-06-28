@@ -76,7 +76,7 @@ def get_latest_vcf_file(target_dir, build, overwrite=False):
         return target_filename
 
     # Get the file.
-    with open(target_filename, 'w') as fh:
+    with open(target_filename, 'wb') as fh:
         ftp = FTP('ftp.ncbi.nlm.nih.gov')
         ftp.login()
         nav_to_vcf_dir(ftp, build=build)
