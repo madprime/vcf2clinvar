@@ -5,10 +5,10 @@ here = path.abspath(path.dirname(__file__))
 
 setup(
     name='vcf2clinvar',
-    version='0.1.4.2',
-    description='Match a personal genome VCF datafile to ClinVar',
-    url='https://github.com/PersonalGenomesOrg/vcf2clinvar',
-    author='Personal Genome Project Informatics Group',
+    version='0.1.5.0',
+    description='Match a personal genome VCF datafile to ClinVar VCF',
+    url='https://github.com/madprime/vcf2clinvar',
+    author='Mad Price Ball',
     author_email='pgp-informatics@arvados.org',
     license='MIT',
 
